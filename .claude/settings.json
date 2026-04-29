@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//tmp/upstream_blueprint/**)",
+      "Read(//tmp/upstream_blueprint/.github/workflows/**)",
+      "Read(//tmp/upstream_blueprint/custom_components/integration_blueprint/**)",
+      "Bash(pip show *)",
+      "Bash(python3 -c \"import py_compile, sys; [py_compile.compile\\(f, doraise=True\\) for f in ['custom_components/integration_blueprint/__init__.py','custom_components/integration_blueprint/api.py','custom_components/integration_blueprint/binary_sensor.py','custom_components/integration_blueprint/config_flow.py','custom_components/integration_blueprint/const.py','custom_components/integration_blueprint/coordinator.py','custom_components/integration_blueprint/data.py','custom_components/integration_blueprint/entity.py','custom_components/integration_blueprint/sensor.py','custom_components/integration_blueprint/switch.py']]\")",
+      "Bash(echo \"compile exit=$?\")",
+      "Read(//tmp/**)",
+      "Bash(python3 -m venv ruffvenv)",
+      "Bash(./ruffvenv/bin/pip install *)",
+      "Bash(./ruffvenv/bin/ruff --version)",
+      "Bash(/tmp/ruffvenv/bin/ruff check *)",
+      "Bash(/tmp/ruffvenv/bin/ruff format *)"
+    ]
+  }
+}
