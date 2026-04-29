@@ -54,6 +54,10 @@ Once-off, in the SonicWall web UI:
 
 ### Via HACS (recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mjryan253&repository=homeassistant-sonicwall&category=integration)
+
+One-click: the badge above opens HACS on your Home Assistant with this repo pre-filled. Otherwise:
+
 1. In HACS, **⋮ menu → Custom repositories**, add `https://github.com/mjryan253/homeassistant-sonicwall` as **Integration**.
 2. Search HACS for **SonicWall** and install.
 3. Restart Home Assistant.
