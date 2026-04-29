@@ -1,10 +1,16 @@
 """
 SonicOS API client for the SonicWall integration.
 
-TZ350 / SonicOS Enhanced 6.5.4.5-53n requires session-mode auth:
-``POST /api/sonicos/auth`` with HTTP Basic establishes a session cookie,
-subsequent ``GET`` calls ride that cookie, and ``DELETE /api/sonicos/auth``
-releases the session slot.
+TZ350 / SonicOS Enhanced 6.5.4.5-53n authenticates by source IP, not by
+session cookie. ``POST /api/sonicos/auth`` with HTTP Basic establishes a
+source-IP-bound session on the firewall; subsequent ``GET`` calls from the
+same client IP within the idle window are accepted without further auth
+headers. ``DELETE /api/sonicos/auth`` releases the session slot.
+
+The firewall does *not* return a ``Set-Cookie`` on ``POST /auth``. Earlier
+revisions of this client looked for a cookie and aborted login when none
+appeared; ``ha-ro`` would log in successfully on the firewall side, then HA
+would discard the session because the expected cookie was missing.
 """
 
 from __future__ import annotations
@@ -43,7 +49,7 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
 
 
 class SonicWallApiClient:
-    """SonicOS API client (HTTP Basic over HTTPS, session-mode)."""
+    """SonicOS API client (HTTP Basic over HTTPS, source-IP session)."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -59,37 +65,36 @@ class SonicWallApiClient:
         self._auth = aiohttp.BasicAuth(username, password)
         self._verify_ssl = verify_ssl
         self._session = session
-        self._base_url = f"https://{host}:{port}/api/sonicos"
-        # Captured Set-Cookie value (e.g. "sessId=abc123"). Set by async_login.
-        self._cookie: str | None = None
+        # `int(port)` defends against NumberSelector handing us 443.0; the
+        # f-string would otherwise render that as "443.0" and produce a
+        # malformed URL.
+        self._base_url = f"https://{host}:{int(port)}/api/sonicos"
+        self._logged_in = False
         self._login_lock = asyncio.Lock()
 
     async def async_login(self, *, force: bool = False) -> None:
         """
-        Establish a session cookie via ``POST /auth``.
+        Establish a source-IP-bound session via ``POST /auth``.
 
-        Returns immediately if a cookie is already held, unless ``force=True``.
+        Returns immediately if we're already logged in, unless ``force=True``.
         """
         async with self._login_lock:
-            if self._cookie and not force:
+            if self._logged_in and not force:
                 return
-            self._cookie = None
-            cookie = await self._post_auth()
-            if not cookie:
-                msg = "SonicWall did not return a session cookie"
-                raise SonicWallApiClientAuthenticationError(msg)
-            self._cookie = cookie
+            self._logged_in = False
+            await self._post_auth()
+            self._logged_in = True
 
     async def async_logout(self) -> None:
         """Release the API session (best-effort; swallows errors)."""
-        if not self._cookie:
+        if not self._logged_in:
             return
         try:
             await self._request("DELETE", "/auth")
         except SonicWallApiClientError:
             pass
         finally:
-            self._cookie = None
+            self._logged_in = False
 
     async def async_version(self) -> Any:
         """Retrieve firmware/model/serial info."""
@@ -108,8 +113,8 @@ class SonicWallApiClient:
         return await self._authenticated_get("/reporting/interfaces/ip")
 
     async def _authenticated_get(self, path: str) -> Any:
-        """GET with automatic re-login if the cookie has expired."""
-        if not self._cookie:
+        """GET with automatic re-login if the firewall session has expired."""
+        if not self._logged_in:
             await self.async_login()
         try:
             return await self._request("GET", path)
@@ -117,8 +122,8 @@ class SonicWallApiClient:
             await self.async_login(force=True)
             return await self._request("GET", path)
 
-    async def _post_auth(self) -> str | None:
-        """Send ``POST /auth`` with Basic auth and capture the session cookie."""
+    async def _post_auth(self) -> None:
+        """Send ``POST /auth`` with HTTP Basic to establish the session."""
         url = f"{self._base_url}/auth"
         headers = {"Accept": "application/json"}
         try:
@@ -133,7 +138,7 @@ class SonicWallApiClient:
                 ) as response,
             ):
                 _verify_response_or_raise(response)
-                set_cookie = response.headers.get("Set-Cookie", "")
+                # Drain body so the connection can be reused for the GETs.
                 await response.read()
         except TimeoutError as exception:
             msg = f"Timeout authenticating to SonicWall - {exception}"
@@ -141,15 +146,11 @@ class SonicWallApiClient:
         except (aiohttp.ClientError, socket.gaierror) as exception:
             msg = f"Error authenticating to SonicWall - {exception}"
             raise SonicWallApiClientCommunicationError(msg) from exception
-        # Set-Cookie is "name=value; path=...; ...". Keep just "name=value".
-        return set_cookie.split(";", 1)[0] if set_cookie else None
 
     async def _request(self, method: str, path: str) -> Any:
-        """Send an authenticated request riding the session cookie."""
+        """Send a request to an endpoint that relies on the IP-bound session."""
         url = f"{self._base_url}{path}"
         headers = {"Accept": "application/json"}
-        if self._cookie:
-            headers["Cookie"] = self._cookie
         try:
             async with (
                 async_timeout.timeout(10),
@@ -161,10 +162,11 @@ class SonicWallApiClient:
                 ) as response,
             ):
                 _verify_response_or_raise(response)
-                if (
-                    response.status == HTTPStatus.NO_CONTENT
-                    or not response.content_length
-                ):
+                # SonicOS speaks HTTP/1.0 without Content-Length, so we can't
+                # rely on response.content_length to detect empty bodies.
+                # The endpoints we call always return a JSON object; only a
+                # genuine 204 No Content has no body.
+                if response.status == HTTPStatus.NO_CONTENT:
                     return None
                 return await response.json(content_type=None)
 
