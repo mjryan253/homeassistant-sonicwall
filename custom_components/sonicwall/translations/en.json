@@ -1,0 +1,24 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "description": "Enter your SonicWall connection details. The SonicOS API must be enabled on the firewall (MANAGE → Appliance → Base Settings → SonicOS API, with HTTP Basic ticked). See {documentation_url} for full setup instructions.",
+                "data": {
+                    "host": "Host or IP address",
+                    "port": "HTTPS port",
+                    "username": "Admin username",
+                    "password": "Admin password",
+                    "verify_ssl": "Verify SSL certificate"
+                }
+            }
+        },
+        "error": {
+            "auth": "Username or password is wrong.",
+            "connection": "Unable to connect to the firewall. Check the host, port, and that the SonicOS API is enabled.",
+            "unknown": "Unknown error occurred."
+        },
+        "abort": {
+            "already_configured": "This SonicWall is already configured."
+        }
+    }
+}
