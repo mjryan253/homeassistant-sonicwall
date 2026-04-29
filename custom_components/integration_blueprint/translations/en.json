@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "description": "If you need help with the configuration have a look here: https://github.com/ludeeus/integration_blueprint",
+                "description": "If you need help with the configuration have a look here: {documentation_url}",
                 "data": {
                     "username": "Username",
                     "password": "Password"
@@ -13,6 +13,9 @@
             "auth": "Username/Password is wrong.",
             "connection": "Unable to connect to the server.",
             "unknown": "Unknown error occurred."
+        },
+        "abort": {
+            "already_configured": "This entry is already configured."
         }
     }
 }
