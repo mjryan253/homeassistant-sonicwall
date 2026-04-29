@@ -10,8 +10,12 @@ __pycache__
 .coverage
 .vscode
 coverage.xml
+.ruff_cache
 
 
 # Home Assistant configuration
 config/*
-!config/configuration.yaml.ruff_cache
+!config/configuration.yaml
+
+# Claude
+.claude
