@@ -1,0 +1,12 @@
+Source: https://commons.wikimedia.org/wiki/File:SonicWall_logo.svg
+Date downloaded: 2026-04-29
+License: Public domain ("simple geometry — ineligible for copyright").
+         Trademark notice: SonicWall is a registered trademark of
+         SonicWall Inc.; used here for identification purposes only.
+
+icon.png / icon@2x.png   - Orange swoosh element extracted and centered on
+                           a transparent square (256x256 / 512x512).
+logo.png / logo@2x.png   - Full SONICWALL wordmark, height 256 / 512.
+
+Generated via cairosvg + Pillow from the upstream SVG. To regenerate,
+re-run the rendering recipe in the v0.1.1 PR description.
